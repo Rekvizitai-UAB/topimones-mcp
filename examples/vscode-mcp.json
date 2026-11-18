@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "topimones": {
+      "type": "http",
+      "url": "https://www.topimones.lt/mcp"
+    }
+  }
+}

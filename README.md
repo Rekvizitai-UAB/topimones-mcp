@@ -1,0 +1,135 @@
+# topimones-mcp
+
+The public [Model Context Protocol](https://modelcontextprotocol.io) server of [topimones.lt](https://www.topimones.lt), the Lithuanian business registry. It lets an AI agent find a Lithuanian company and read its register data, with the source and the date next to every value.
+
+- **URL:** `https://www.topimones.lt/mcp`
+- **Transport:** Streamable HTTP, `POST`, JSON-RPC 2.0, no session
+- **Authentication:** none. No API key, no sign-up.
+- **Read-only:** no tool changes anything.
+
+Lietuviškai: žr. [skyrių apačioje](#lietuviškai).
+
+## Quick start
+
+### Claude Code
+
+```bash
+claude mcp add --transport http topimones https://www.topimones.lt/mcp
+```
+
+### Cursor
+
+Add to `~/.cursor/mcp.json` (or `.cursor/mcp.json` in a project):
+
+```json
+{
+  "mcpServers": {
+    "topimones": {
+      "url": "https://www.topimones.lt/mcp"
+    }
+  }
+}
+```
+
+### VS Code
+
+Add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "topimones": {
+      "type": "http",
+      "url": "https://www.topimones.lt/mcp"
+    }
+  }
+}
+```
+
+### Claude (claude.ai and desktop app) and ChatGPT
+
+Add a remote MCP server (a custom connector) in the client's settings, enter `https://www.topimones.lt/mcp` and choose no authentication. Menu names change between versions, so follow your client's current documentation for adding a remote MCP server by URL.
+
+Claude Desktop can also read a config file; it starts local programs, so a remote server goes through the `mcp-remote` bridge (needs Node.js). See [`examples/claude-desktop-config.json`](examples/claude-desktop-config.json).
+
+### Any other MCP client
+
+Streamable HTTP, `POST`, no authentication, URL `https://www.topimones.lt/mcp`. Requests that carry an `Origin` header are refused, so call the server from a server-side client, not from a web page.
+
+### Try it without a client
+
+[`examples/curl.sh`](examples/curl.sh) (initialize, list the tools, one call) and [`examples/python_client.py`](examples/python_client.py) (standard library only).
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `resolve_entity` | Find an entity by name, national id, VAT number or LEI; up to 10 candidates with their public id (for example `LT:110053842`). |
+| `get_entity` | The register identity of one entity (name, legal form, status, dates), optionally as it was on a given date; further blocks only where their source licence is confirmed. |
+| `search_entities` | List entities by name words, legal form, status and registration window; up to 20 rows a page. |
+| `get_entity_series` | One indicator over time for up to five entities; a series whose licence is not confirmed comes back as `null` with a reason. |
+| `get_entity_history` | Periods of an entity's name, legal form and status: when each value appeared and when it was replaced. |
+| `lookup_code` | The values the filters accept: activity codes, legal forms and register statuses. |
+| `get_coverage` | What the server serves for a country: data domains, sources, licences, freshness and entity counts. |
+
+Input fields, example calls and the answer shape of every tool: [`docs/TOOLS.md`](docs/TOOLS.md).
+
+## Example prompts
+
+1. "Find the company 'Telšių keliai' and tell me its code, legal form and status."
+2. "What was the name of company LT:110053842 on 1 January 2022, and has it changed its name since?"
+3. "List private limited companies (UAB) registered in 2023 whose name contains 'logistika'."
+4. "Which legal form code corresponds to 'uždaroji akcinė bendrovė'?"
+5. "Which data domains does the Lithuanian registry server not serve yet, and why?"
+
+## What you get, and what you do not
+
+Every answer states its source, licence and as-of date. When a value cannot be served the field is `null` and `meta.withheld` names the reason; the server does not invent numbers.
+
+Not served, at present:
+
+- **Financial statements, workforce and wages, SODRA debt and the EBRS reputation score** are withheld until the data licences of their sources are confirmed (the score methodology is public, see below). Such fields come back as `null` with a reason such as `not_licensed`.
+- **Natural persons:** person-like legal forms are not listed, and no names, contact details or court records are served.
+- **Struck-off entities** are not served. `not_in_coverage` means "no servable record", not "this entity does not exist".
+
+`get_coverage` always tells you what is served today.
+
+## Limits and fair use
+
+Per address:
+
+| Limit | Value |
+|---|---|
+| Requests per minute | 30 |
+| Tool calls per day | 300 |
+| Entity records per day | 300 |
+
+Answers are capped at 16 KB; long lists continue with `meta.next_cursor`. Daily counters reset at 00:00 UTC.
+
+Automated bulk copying of the data is not permitted. Bulk data and higher limits are available by agreement: [www.topimones.lt/kontaktai](https://www.topimones.lt/kontaktai).
+
+## Data sources and attribution
+
+Lithuanian public registers (Registrų centras, VMI, AVNT, Viešųjų pirkimų tarnyba, GLEIF and others), mostly through the open-data portal data.gov.lt. Each answer lists its sources in `meta.sources` with licence, attribution and retrieval time. Where a source is published under CC BY 4.0, name the publisher when you reuse the data. Data is modified by topimones.lt (selection, mapping, rounding).
+
+## Links and status
+
+- Page with the live status and the FAQ: <https://www.topimones.lt/imones-mcp> (Markdown version for agents: <https://www.topimones.lt/imones-mcp/md>)
+- Terms of use: <https://www.topimones.lt/naudojimo-salygos>
+- Open-source reputation score (EBRS): <https://github.com/Rekvizitai-UAB/ebrs-score>
+- Problems, questions and ideas: open an issue in this repository.
+
+## Licence
+
+The text and examples in this repository are MIT licensed, see [`LICENSE`](LICENSE). The data served by the server is **not** covered by the MIT licence: it is governed by the licences of its sources and by the [terms of topimones.lt](https://www.topimones.lt/naudojimo-salygos). See [`NOTICE`](NOTICE).
+
+## Lietuviškai
+
+Tai viešasis [topimones.lt](https://www.topimones.lt) įmonių MCP serveris: DI agentas suranda Lietuvos įmonę ir gauna jos registro duomenis su šaltiniu ir data. Prieigai **rakto nereikia**; adresas - `https://www.topimones.lt/mcp`.
+
+- Prisijungimas: Claude Code - `claude mcp add --transport http topimones https://www.topimones.lt/mcp`; Cursor ir VS Code - pavyzdžiai viršuje; Claude ir ChatGPT - pridėkite nuotolinį MCP serverį pagal adresą.
+- Septyni įrankiai: įmonės paieška, registro tapatybė, sąrašai pagal filtrus, rodiklių eiga, pavadinimo ir statuso istorija, filtrų reikšmės, aprėptis.
+- Finansinės ataskaitos, darbuotojai ir atlyginimai, SODRA skola ir EBRS balas kol kas neteikiami, kol nepatvirtintos šaltinių licencijos; serveris grąžina `null` ir priežastį. Fizinių asmenų, išregistruotų subjektų ir teismų bylų duomenų nėra.
+- Limitai vienam adresui: 30 užklausų per minutę, 300 įrankių iškvietimų ir 300 įmonių įrašų per parą. Masinis automatizuotas kopijavimas neleidžiamas; dideli kiekiai ir didesni limitai - susitarus per [kontaktų puslapį](https://www.topimones.lt/kontaktai).
+- Šio repozitorijaus tekstai ir pavyzdžiai - MIT licencija; duomenims ji netaikoma, juos reglamentuoja šaltinių licencijos ir [naudojimo sąlygos](https://www.topimones.lt/naudojimo-salygos).
+- Puslapis su būsena: <https://www.topimones.lt/imones-mcp>. Pranešimai apie klaidas - GitHub issues.
