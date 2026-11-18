@@ -6,6 +6,7 @@ The public [Model Context Protocol](https://modelcontextprotocol.io) server of [
 - **Transport:** Streamable HTTP, `POST`, JSON-RPC 2.0, no session
 - **Authentication:** none. No API key, no sign-up.
 - **Read-only:** no tool changes anything.
+- **Status:** beta. Tools, answer fields and limits may still change; the page below always shows the current state.
 
 Lietuviškai: žr. [skyrių apačioje](#lietuviškai).
 
