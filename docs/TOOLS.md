@@ -2,7 +2,7 @@
 
 Generated file - do not edit by hand. It is produced from the server's own tool definitions, so it matches what `tools/list` returns.
 
-All seven tools are read-only. Endpoint: `https://www.topimones.lt/mcp`. Protocol revisions: 2026-07-28, 2025-11-25.
+All 7 tools are read-only. Endpoint: `https://www.topimones.lt/mcp`. Protocol revisions: 2026-07-28, 2025-11-25.
 
 ## Answer envelope
 

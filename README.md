@@ -63,15 +63,17 @@ Streamable HTTP, `POST`, no authentication, URL `https://www.topimones.lt/mcp`. 
 
 ## Tools
 
+<!-- generated:tools:start -->
 | Tool | What it does |
 |---|---|
-| `resolve_entity` | Find an entity by name, national id, VAT number or LEI; up to 10 candidates with their public id (for example `LT:110053842`). |
-| `get_entity` | The register identity of one entity (name, legal form, status, dates), optionally as it was on a given date; further blocks only where their source licence is confirmed. |
-| `search_entities` | List entities by name words, legal form, status and registration window; up to 20 rows a page. |
-| `get_entity_series` | One indicator over time for up to five entities; a series whose licence is not confirmed comes back as `null` with a reason. |
-| `get_entity_history` | Periods of an entity's name, legal form and status: when each value appeared and when it was replaced. |
-| `lookup_code` | The values the filters accept: activity codes, legal forms and register statuses. |
-| `get_coverage` | What the server serves for a country: data domains, sources, licences, freshness and entity counts. |
+| `resolve_entity` | Find an entity by name, id, VAT number or LEI. |
+| `get_entity` | One entity by id, in blocks. |
+| `search_entities` | List entities by filters. |
+| `get_entity_series` | One series over time for up to five entities. |
+| `get_entity_history` | When an identity attribute changed. |
+| `lookup_code` | Look up activity codes, legal forms and statuses. |
+| `get_coverage` | Coverage, sources and licences of a country. |
+<!-- generated:tools:end -->
 
 Input fields, example calls and the answer shape of every tool: [`docs/TOOLS.md`](docs/TOOLS.md).
 
@@ -87,6 +89,10 @@ Input fields, example calls and the answer shape of every tool: [`docs/TOOLS.md`
 
 Every answer states its source, licence and as-of date. When a value cannot be served the field is `null` and `meta.withheld` names the reason; the server does not invent numbers.
 
+<!-- generated:domains:start -->
+Data domains served today: `identity`, `tax`, `insolvency`, `procurement`. Withheld as `not_licensed` until the licence of their sources is confirmed: `financials`, `workforce`, `debt`, `score`.
+<!-- generated:domains:end -->
+
 Not served, at present:
 
 - **Financial statements, workforce and wages, SODRA debt and the EBRS reputation score** are withheld until the data licences of their sources are confirmed (the score methodology is public, see below). Such fields come back as `null` with a reason such as `not_licensed`.
@@ -99,11 +105,13 @@ Not served, at present:
 
 Per address:
 
+<!-- generated:limits:start -->
 | Limit | Value |
 |---|---|
 | Requests per minute | 30 |
 | Tool calls per day | 300 |
 | Entity records per day | 300 |
+<!-- generated:limits:end -->
 
 Answers are capped at 16 KB; long lists continue with `meta.next_cursor`. Daily counters reset at 00:00 UTC.
 
@@ -115,7 +123,8 @@ Lithuanian public registers (Registrų centras, VMI, AVNT, Viešųjų pirkimų t
 
 ## Links and status
 
-- Page with the live status and the FAQ: <https://www.topimones.lt/imones-mcp> (Markdown version for agents: <https://www.topimones.lt/imones-mcp/md>)
+- Page with the live status (served entity count, data domains, last update of each source) and the FAQ: <https://www.topimones.lt/imones-mcp> (Markdown version for agents: <https://www.topimones.lt/imones-mcp/md>). The same facts in the protocol: the `get_coverage` tool.
+- Site summary for AI systems: <https://www.topimones.lt/llms.txt>
 - Terms of use: <https://www.topimones.lt/naudojimo-salygos>
 - Open-source reputation score (EBRS): <https://github.com/Rekvizitai-UAB/ebrs-score>
 - Problems, questions and ideas: open an issue in this repository.
@@ -130,7 +139,13 @@ Tai viešasis [topimones.lt](https://www.topimones.lt) įmonių MCP serveris: DI
 
 - Prisijungimas: Claude Code - `claude mcp add --transport http topimones https://www.topimones.lt/mcp`; Cursor ir VS Code - pavyzdžiai viršuje; Claude ir ChatGPT - pridėkite nuotolinį MCP serverį pagal adresą.
 - Septyni įrankiai: įmonės paieška, registro tapatybė, sąrašai pagal filtrus, rodiklių eiga, pavadinimo ir statuso istorija, filtrų reikšmės, aprėptis.
-- Finansinės ataskaitos, darbuotojai ir atlyginimai, SODRA skola ir EBRS balas kol kas neteikiami, kol nepatvirtintos šaltinių licencijos; serveris grąžina `null` ir priežastį. Fizinių asmenų, išregistruotų subjektų ir teismų bylų duomenų nėra.
-- Limitai vienam adresui: 30 užklausų per minutę, 300 įrankių iškvietimų ir 300 įmonių įrašų per parą. Masinis automatizuotas kopijavimas neleidžiamas; dideli kiekiai ir didesni limitai - susitarus per [kontaktų puslapį](https://www.topimones.lt/kontaktai).
+<!-- generated:domains-lt:start -->
+- Šiuo metu teikiama: registro tapatybė, mokesčiai, nemokumas, viešieji pirkimai. Kol nepatvirtintos šaltinių licencijos, neteikiama: finansinės ataskaitos, darbuotojai ir atlyginimai, skolos, EBRS balas.
+<!-- generated:domains-lt:end -->
+- Neteikiamos srities reikšmė - `null` su priežastimi. Fizinių asmenų, išregistruotų subjektų ir teismų bylų duomenų nėra.
+<!-- generated:limits-lt:start -->
+- Limitai vienam adresui: 30 užklausų per minutę, 300 įrankių iškvietimų ir 300 įmonių įrašų per parą; atsakymas ne didesnis kaip 16 KB.
+<!-- generated:limits-lt:end -->
+- Masinis automatizuotas kopijavimas neleidžiamas; dideli kiekiai ir didesni limitai - susitarus per [kontaktų puslapį](https://www.topimones.lt/kontaktai).
 - Šio repozitorijaus tekstai ir pavyzdžiai - MIT licencija; duomenims ji netaikoma, juos reglamentuoja šaltinių licencijos ir [naudojimo sąlygos](https://www.topimones.lt/naudojimo-salygos).
 - Puslapis su būsena: <https://www.topimones.lt/imones-mcp>. Pranešimai apie klaidas - GitHub issues.
