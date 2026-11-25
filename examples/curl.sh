@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Talk to the public MCP server by hand: initialize, list the tools, call one.
 # No API key is needed. Requires curl; jq is optional (pretty-printing).
+# A descriptive User-Agent is sent: the site edge refuses some library defaults (HTTP 403).
 set -euo pipefail
 
 URL="https://www.topimones.lt/mcp"
@@ -11,6 +12,7 @@ post() {
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
     -H "MCP-Protocol-Version: $VERSION" \
+    -H "User-Agent: topimones-mcp-example/1.0" \
     -d "$1" | pretty
 }
 

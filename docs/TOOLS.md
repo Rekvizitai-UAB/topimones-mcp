@@ -2,7 +2,7 @@
 
 Generated file - do not edit by hand. It is produced from the server's own tool definitions, so it matches what `tools/list` returns.
 
-All 7 tools are read-only. Endpoint: `https://www.topimones.lt/mcp`. Protocol revisions: 2026-07-28, 2025-11-25.
+All 7 tools are read-only. Endpoint: `https://www.topimones.lt/mcp`. Protocol revisions: 2026-07-28, 2025-11-25, 2025-06-18, 2025-03-26; `initialize` answers the requested revision when it is supported, otherwise `2025-11-25`; a request without an `MCP-Protocol-Version` header is served as `2025-03-26`.
 
 ## Answer envelope
 
@@ -36,25 +36,43 @@ A tool error is a result with `isError: true` and `structuredContent` `{ "error"
 |---|---|
 | `invalid_request` | Bad arguments; the message says which. |
 | `not_in_coverage` | No servable record; does not mean the entity does not exist. |
-| `quota_exceeded` | A daily limit is used up; resets_at gives the reset (UTC). |
-| `rate_limited` | Too many requests; wait retry_after_s seconds. |
+| `quota_exceeded` | A daily limit is used up; budget names it and resets_at gives the reset (UTC). Without a key it is sent with HTTP 429 and Retry-After. |
+| `rate_limited` | Too many requests; wait retry_after_s seconds. Without a key it comes as HTTP 429 and JSON-RPC error -31006, not as a tool result. |
 | `busy` | Service busy or the answer missed its 5 s deadline; retry after retry_after_s. |
 | `internal_error` | The answer could not be built. |
 
-Each tool description below names what an answer costs: one call, plus entity records ("disclosures") counted against the daily limits listed in the README.
+## Limits without a key
+
+- 30 requests a minute per address
+- 300 tool calls a day per address
+- 300 entity records (identity disclosures) a day per address
+- 100 detail disclosures (for example one entity in get_entity_series) a day per address
+- 30 misses (ids or queries with no servable record) a day per address
+- 2 requests in flight at once per address
+- answers are capped at 16 KB; continue with meta.next_cursor
+
+When a limit is reached:
+
+- Per-minute or in-flight limit: HTTP 429 with a `Retry-After` header and JSON-RPC error `-31006` with `data.error` `"rate_limited"` and `data.retry_after_s` (seconds). It is not a tool result.
+- Daily limit used up (calls, entity records, detail disclosures or misses): HTTP 429 with `Retry-After` (seconds to 00:00 UTC) and a tool result with `isError: true` whose error `quota_exceeded` names the `budget` and gives `resets_at`.
+- Limits count per address: an IPv4 address on its own, an IPv6 address by its /64. A client whose egress alternates between IPv4 and IPv6 sees two separate counters in `meta.usage`.
+
+Wait as long as `Retry-After` says; do not retry in a loop. Daily counters reset at 00:00 UTC.
+
+Each tool description below names what an answer costs: one call, plus entity records ("disclosures") counted against the daily limits above.
 
 ## resolve_entity
 
 **Find an entity by name, id, VAT number or LEI**
 
-Resolve a name, a national id, a public id "CC:id", a VAT number or an LEI to up to 10 candidate entities (register identity only), each with its coverage tier and its public id ("LT:110053842"). Pass the two parts as country and id to get_entity and get_entity_history, the whole id to get_entity_series. Name pages carry meta.next_cursor; 200 candidates are reachable per query. Costs one identity disclosure per candidate; an id or identifier with no match counts one miss.
+Resolve a name, a national id, a public id "CC:id", a VAT number or an LEI to up to 10 candidate entities (register identity only), each with its coverage tier and its public id ("LT:110053842"). Pass the two parts as country and id to get_entity and get_entity_history, the whole id to get_entity_series. Name pages carry meta.next_cursor; 200 candidates are reachable per query. An LEI needs no country (it is unique worldwide). Costs one identity disclosure per candidate; an id or identifier with no match counts one miss.
 
 ### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `q` | `string` | yes | A name (words of 3+ characters, any case, diacritics optional), a national id, a public id "CC:id", a VAT number or an LEI. |
-| `country` | `string` | no | ISO 3166-1 alpha-2. Required unless q is a full public id "CC:id". |
+| `country` | `string` | no | ISO 3166-1 alpha-2. Required unless q is a full public id "CC:id" or an LEI (an LEI is unique worldwide). |
 | `cursor` | `string` | no | meta.next_cursor of the previous page, with the same q and country. |
 
 ### Example call
@@ -165,7 +183,7 @@ The register identity of one entity by exact id (country + the national id, the 
 | `country` | `string` | yes | ISO 3166-1 alpha-2 country code, any case (e.g. "LT"). |
 | `id` | `string` | yes | National id as issued by the register (the part after "CC:" of a public id). |
 | `include` | `string[]` | no | Blocks to return besides identity (always returned). Default: identity only. Values: `identity`, `financials`, `workforce`, `tax`, `debt`, `insolvency`, `procurement`, `score`. Default: `["identity"]`. |
-| `detail` | `string` | no | concise: the newest year of each yearly block; full: every year held. Values: `concise`, `full`. Default: `"concise"`. |
+| `detail` | `string` | no | concise: the newest year of each yearly block (tax: also the last full year when the newest is the running, partial year); full: every year held. Values: `concise`, `full`. Default: `"concise"`. |
 | `as_of` | `string` | no | YYYY-MM-DD: the identity valid on that date, as we know it now. Not after today in the country's calendar; today = omitted. |
 
 ### Example call
@@ -273,7 +291,7 @@ Placeholder values (`<...>`) show the shape.
 
 **List entities by filters**
 
-To find one entity from a name or an id use resolve_entity; this lists many. Identity rows of entities matching filters: name words, legal form, status and registration window on the register; score_risk and vat_registered where the country has them and their source is licensed. A narrowing filter is required (a name word, or a legal form or status - not every status - with a registration window of whole calendar years, at most 5). Up to 20 rows a page, 200 per filter set, no totals; person-like legal forms are never listed. Costs one identity disclosure per row, plus one detail disclosure per row (at least one) with score_risk; an empty page with no next cursor counts one miss.
+To find one entity from a name or an id use resolve_entity; this lists many. Identity rows of entities matching filters: name words, legal form, status and registration window on the register; score_risk and vat_registered where the country has them and their source is licensed. A narrowing filter is required (a name word, or a legal form or status - not every status - with a registration window of whole calendar years, at most 5). Up to 20 rows a page, 200 per filter set, no totals; person-like legal forms are never listed. Costs one identity disclosure per row, plus one detail disclosure per row (at least one) with score_risk; an empty page with no next cursor counts one miss. legal_form also takes the common national abbreviation of a form. Identity filters all run before paging, so a page of identity filters is empty only at the end of the matches.
 
 ### Input
 
@@ -281,7 +299,7 @@ To find one entity from a name or an id use resolve_entity; this lists many. Ide
 |---|---|---|---|
 | `country` | `string` | yes | ISO 3166-1 alpha-2 country code, any case (e.g. "LT"). |
 | `name` | `string` | no | Name words (3+ characters each, any case, diacritics optional). |
-| `legal_form` | `string[]` | no | Legal forms: national labels or ISO 20275 ELF codes, as lookup_code kind=legal_form lists them. |
+| `legal_form` | `string[]` | no | Legal forms: national labels or ISO 20275 ELF codes, as lookup_code kind=legal_form lists them, or the common national abbreviation of a form (lookup_code kind=legal_form with q set to it shows the form it names). |
 | `status` | `string[]` | no | Register statuses. Values: `active`, `winding_up`, `insolvent`. |
 | `registered_from` | `string` | no | Registered on or after this date (YYYY-MM-DD). Without name it must be 1 January of a year (YYYY-01-01). |
 | `registered_to` | `string` | no | Registered on or before this date (YYYY-MM-DD). Without name it must be 31 December (YYYY-12-31), at most 5 calendar years after registered_from. |
@@ -439,7 +457,9 @@ Placeholder values (`<...>`) show the shape.
           {
             "period": "<period>",
             "value": 0,
-            "withheld": null
+            "withheld": null,
+            "partial": true,
+            "period_end": null
           }
         ]
       }
@@ -604,9 +624,9 @@ Placeholder values (`<...>`) show the shape.
 
 ## lookup_code
 
-**Look up activity codes, legal forms and statuses**
+**Look up legal forms and statuses**
 
-The values the filters accept, per country: activity codes (with the number of entities per code, null under 5), legal forms (ISO 20275 ELF code and national label) and register statuses (platform status and the national labels it maps from). Legal forms and statuses list every value a page at a time (meta.next_cursor); activity codes need q and have no cursor. Activity codes are served only when their source is licensed. Costs one call only.
+The values the filters accept, per country: legal forms (ISO 20275 ELF code and national label; q also finds a common national abbreviation of the form) and register statuses (platform status and the national labels it maps from), every value a page at a time (meta.next_cursor). kind=activity is not served yet: its source has no confirmed licence, so it answers no rows with meta.withheld not_licensed. Costs one call only.
 
 ### Input
 
@@ -642,14 +662,14 @@ Placeholder values (`<...>`) show the shape.
 ```json
 {
   "data": {
-    "kind": "activity",
+    "kind": "legal_form",
     "rows": [
       {
         "code": "<code>",
         "scheme": "<scheme>",
         "label": "<label>",
         "national_value": "<national_value>",
-        "entities": -9007199254740991
+        "entities": 0
       }
     ],
     "truncated": false
